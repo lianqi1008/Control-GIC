@@ -17,5 +17,3 @@ python main.py --config configs/config_train.yaml
 ```
 python inference.py -i input_dir -o output_dir -s 512 -w
 ```
-
-test
