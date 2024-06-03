@@ -1,0 +1,53 @@
+import os
+import torch
+from torch.autograd import Variable
+
+class BaseModel():
+    def __init__(self):
+        pass
+        
+    def name(self):
+        return 'BaseModel'
+
+    def initialize(self, use_gpu=True, gpu_ids=[0]):
+        self.use_gpu = use_gpu
+        self.gpu_ids = gpu_ids
+
+    def forward(self):
+        pass
+
+    def get_image_paths(self):
+        pass
+
+    def optimize_parameters(self):
+        pass
+
+    def get_current_visuals(self):
+        return self.input
+
+    def get_current_errors(self):
+        return {}
+
+    def save(self, label):
+        pass
+
+    # helper saving function that can be used by subclasses
+    def save_network(self, network, path, network_label, epoch_label):
+        save_filename = f'{epoch_label}_net_{network_label}'
+        save_path = os.path.join(path, save_filename)
+        torch.save(network.state_dict(), save_path)
+
+    # helper loading function that can be used by subclasses
+    def load_network(self, network, network_label, epoch_label):
+        save_filename = f'{epoch_label}_net_{network_label}'
+        save_path = os.path.join(self.save_dir, save_filename)
+        print(f'Loading network from {save_path}')
+        network.load_state_dict(torch.load(save_path))
+
+    def get_image_paths(self):
+        return self.image_paths
+
+    def save_done(self, flag=False):
+        np.save(os.path.join(self.save_dir, 'done_flag'),flag)
+        np.savetxt(os.path.join(self.save_dir, 'done_flag'),[flag,],fmt='%i')
+
