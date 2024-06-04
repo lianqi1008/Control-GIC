@@ -44,6 +44,7 @@ By fine-tuning the granularity ratio, the model is able to make fine adjustments
 Once the granularity ratio is fixed, the bpp values of each image in the dataset are very close to each other, thus easily fulfilling the constrained bandwidth and bitrate conditions. For example, in one compression on the Kodak dataset, we set the ratio to (0.1, 0.8, 0.1), and obtained 24 images with bpp ranging from **0.262** to **0.277**, with only slight variations. 
 
 ## Cite
+```
 @misc{li2024onceforall,
       title={Once-for-All: Controllable Generative Image Compression with Dynamic Granularity Adaption}, 
       author={Anqi Li and Yuxi Liu and Huihui Bai and Feng Li and Runmin Cong and Meng Wang and Yao Zhao},
@@ -52,6 +53,7 @@ Once the granularity ratio is fixed, the bpp values of each image in the dataset
       archivePrefix={arXiv},
       primaryClass={eess.IV}
 }
+```
 
 ## Thanks
 The code references [VQGAN](https://github.com/CompVis/taming-transformers), [MoVQGAN](https://github.com/ai-forever/MoVQGAN), [DQ-VAE](https://github.com/CrossmodalGroup/DynamicVectorQuantization) and Huffman coding from Bhrigu Srivastava@bhrigu123. Thanks for these excellent works!
