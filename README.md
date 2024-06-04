@@ -1,5 +1,5 @@
 # Control-GIC
-This is the Pytorch implementation of the paper "[**Once-for-All: Controllable Generative Image Compression with Dynamic Granularity Adaption**](https://arxiv.org/pdf/2209.06950.pdf)". We design a unified generative compression model (Control-GIC) capable of variable bitrate adaption across a broad spectrum while preserving high-perceptual fidelity reconstruction. Control-GIC allows one model for variable bitrates and once compression on an entire dataset for constrained bitrate conditions.
+This is the Pytorch implementation of the paper "[**Once-for-All: Controllable Generative Image Compression with Dynamic Granularity Adaption**](https://arxiv.org/abs/2406.00758)". We design a unified generative compression model (Control-GIC) capable of variable bitrate adaption across a broad spectrum while preserving high-perceptual fidelity reconstruction. Control-GIC allows one model for variable bitrates and once compression on an entire dataset for constrained bitrate conditions.
 
 ![Example](./figs/fig1_00.png)
 
@@ -13,7 +13,7 @@ conda activate CGIC
 pip install -r requirements.txt
 ```
 ## 🚀 Usage
-The **model weights** can be downloaded from [GoogleDrive](https://drive.google.com/file/d/11jaor89-ti6rS2lK2gebg52AEcShFPJk/view?usp=drive_link) and [BaiduNetDisk](https://pan.baidu.com/s/1b_s_UTVQxQRMausjmeCdIg?pwd=byzo) (code：byzo).
+The **model weights** can be downloaded from [GoogleDrive](https://drive.google.com/file/d/11jaor89-ti6rS2lK2gebg52AEcShFPJk/view?usp=drive_link) and [BaiduNetDisk](https://pan.baidu.com/s/1b_s_UTVQxQRMausjmeCdIg?pwd=byzo).
 
 **Train**
 ```
@@ -22,10 +22,11 @@ python main.py --config configs/config_train.yaml
 **Inference**
 
 If you want a wide range of bpp (0.1 ~ 0.75), we recommend you start with the Granularity Ratio in [(0, 0.5, 0.5), (0, 0.8, 0.2), (0.1, 0.8, 0.1), (0.3, 0.6, 0.1), (0.5, 0.4, 0.1), (0.9, 0.1, 0)], where each element represents fine-grained, medium-grained, and coarse-grained ratio from left to right, and fine-tune the ratio values based on these ratios to get a finer bpp.
+
 ```
 python inference.py -i input_dir -o output_dir -w
 ```
-
+Note that when tuning the ratios to change the bpp, the fine-grained priority is higher than the medium-grained priority, which is higher than the coarse-grained priority. This ensures the best reconstruction quality.
 ## 💡 Special Capabilities
 **Fine control of bitrate**
 
