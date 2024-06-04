@@ -26,7 +26,7 @@ If you want a wide range of bpp (0.1 ~ 0.75), we recommend you start with the Gr
 ```
 python inference.py -i input_dir -o output_dir -w
 ```
-Note that when tuning the ratios to change the bpp, the fine-grained priority is higher than the medium-grained priority, which is higher than the coarse-grained priority. This ensures the best reconstruction quality.
+Note that when tuning the ratio to change the bpp, the fine-grained priority is higher than the medium-grained priority, which is higher than the coarse-grained priority. This ensures the best reconstruction quality.
 ## 💡 Special Capabilities
 **Fine control of bitrate**
 
