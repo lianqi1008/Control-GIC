@@ -13,7 +13,7 @@ conda activate CGIC
 pip install -r requirements.txt
 ```
 ## 🚀 Usage
-The **model weights** can be downloaded from [GoogleDrive](https://drive.google.com/file/d/11jaor89-ti6rS2lK2gebg52AEcShFPJk/view?usp=drive_link) and [BaiduNetDisk](https://pan.baidu.com/s/1b_s_UTVQxQRMausjmeCdIg?pwd=byzo).
+The **model weight** can be downloaded from [GoogleDrive](https://drive.google.com/file/d/11jaor89-ti6rS2lK2gebg52AEcShFPJk/view?usp=drive_link) and [BaiduNetDisk](https://pan.baidu.com/s/1b_s_UTVQxQRMausjmeCdIg?pwd=byzo).
 
 **Train**
 ```
