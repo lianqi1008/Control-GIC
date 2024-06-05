@@ -19,10 +19,14 @@ pip install -r requirements.txt
 The **model weight** can be downloaded from [GoogleDrive](https://drive.google.com/file/d/11jaor89-ti6rS2lK2gebg52AEcShFPJk/view?usp=drive_link) and [BaiduNetDisk](https://pan.baidu.com/s/1b_s_UTVQxQRMausjmeCdIg?pwd=byzo).
 
 **Train**
+
+We use [OpenImages-v6](https://storage.googleapis.com/openimages/web/download.html) dataset and randomly crop images to a uniform 256 × 256 resolution.
 ```
 python main.py --config configs/config_train.yaml
 ```
 **Inference**
+
+We use [Kodak](https://r0k.us/graphics/kodak/) and high-resolution [DIV2K](https://data.vision.ee.ethz.ch/cvl/DIV2K/) dataset to evaluate the model.
 
 If you want a wide range of bpp (0.1 ~ 0.75), we recommend you start with the Granularity Ratio in [(0, 0.5, 0.5), (0, 0.8, 0.2), (0.1, 0.8, 0.1), (0.3, 0.6, 0.1), (0.5, 0.4, 0.1), (0.9, 0.1, 0)], where each element represents fine-grained, medium-grained, and coarse-grained ratio from left to right, and fine-tune the ratio values based on these ratios to get a finer bpp.
 
