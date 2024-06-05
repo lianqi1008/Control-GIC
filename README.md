@@ -1,8 +1,11 @@
 # Control-GIC
 This is the Pytorch implementation of the paper "[**Once-for-All: Controllable Generative Image Compression with Dynamic Granularity Adaption**](https://arxiv.org/abs/2406.00758)". We design a unified generative compression model (Control-GIC) capable of variable bitrate adaption across a broad spectrum while preserving high-perceptual fidelity reconstruction. Control-GIC allows one model for variable bitrates and once compression on an entire dataset for constrained bitrate conditions.
 
-![Example](./figs/fig1_00.png)
+![Example](./figs/example.png)
 
+## ✨ Model Architecture 
+<!-- <img src="./figs/framework.png" alt="Model" style="width: 80%; display: inline-block;"> -->
+![Model](./figs/framework.png)
 
 ## 🔓 Installation
 ```
