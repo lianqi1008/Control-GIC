@@ -4,8 +4,8 @@ This is the Pytorch implementation of the paper "[**Once-for-All: Controllable G
 ![Example](./figs/example.png)
 
 ## ✨ Model Architecture 
-<!-- <img src="./figs/framework.png" alt="Model" style="width: 80%; display: inline-block;"> -->
-![Model](./figs/framework.png)
+<img src="./figs/framework.png" alt="Model" style="width: 80%; display: inline-block;">
+<!-- ![Model](./figs/framework.png) -->
 
 ## 🔓 Installation
 ```
