@@ -280,7 +280,7 @@ class CGIC(pl.LightningModule):
                 ind_medium[ind_medium==1] = torch.tensor(ind_medium_decompress).to(ind.device)
                 ind_fine[ind_fine==1] = torch.tensor(ind_fine_decompress).to(ind.device)
                 ind_decompress = ind_fine + ind_medium.repeat_interleave(2, dim=-1).repeat_interleave(2, dim=-2) + ind_coarse.repeat_interleave(4, dim=-1).repeat_interleave(4, dim=-2)
-                print(ind_decompress)
+                # print(ind_decompress)
 
             elif mode==1:
                 ind_medium_decompress = h_indices.decompress_string(os.path.join(path, 'indices_medium.bin'))
