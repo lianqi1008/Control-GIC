@@ -54,7 +54,7 @@ class ImageDataset(Dataset):
     def __getitem__(self, index: int) -> torch.Tensor:
         image = Image.open(self.image_paths[index])
         # image = image.convert('RGB')
-        # image = self._resize_and_crop(image)
+        image = self._resize_and_crop(image)
         image = self.transform(image)
         return image
     
