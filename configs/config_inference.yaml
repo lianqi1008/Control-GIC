@@ -11,7 +11,7 @@ model:
     entropy_patch_size: 
     - 8
     - 16
-    ckpt_path: './ckpy/model.ckpt'
+    ckpt_path: './ckpt/model.ckpt'
     ddconfig:
       double_z: false
       z_channels: 4
