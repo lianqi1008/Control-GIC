@@ -1,4 +1,4 @@
-# Control-GIC
+# Control-GIC (Controllable Generative Image Compression)
 ![Example](./figs/example.png)
 
 [**Once-for-All: Controllable Generative Image Compression with Dynamic Granularity Adaption**](https://arxiv.org/pdf/2406.00758) 
@@ -58,11 +58,10 @@ Once the granularity ratio is fixed, the bpp values of each image in the dataset
 ```
 @misc{li2024onceforall,
       title={Once-for-All: Controllable Generative Image Compression with Dynamic Granularity Adaption}, 
-      author={Anqi Li and Yuxi Liu and Huihui Bai and Feng Li and Runmin Cong and Meng Wang and Yao Zhao},
+      author={Anqi Li and Feng Li and Yuxi Liu and Runmin Cong and Yao Zhao and Huihui Bai},
       year={2024},
       eprint={2406.00758},
-      archivePrefix={arXiv},
-      primaryClass={eess.IV}
+      archivePrefix={arXiv}
 }
 ```
 
