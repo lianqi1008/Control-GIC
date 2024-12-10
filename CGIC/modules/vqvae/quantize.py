@@ -76,9 +76,9 @@ class VectorQuantize2(nn.Module):
         
         # multi-grain z_indices calculation
         z_indices = torch.argmin(d, dim=1)
-
-        for index in z_indices:
-            self.embedding_counter[str(index.item())] += 1  # update
+        if self.training:
+            for index in z_indices:
+                self.embedding_counter[str(index.item())] += 1  # update
 
         z_q = self.embedding(z_indices).view(z.shape)
 
@@ -96,38 +96,3 @@ class VectorQuantize2(nn.Module):
         z_q = rearrange(z_q, 'b h w c -> b c h w').contiguous()
 
         return z_q, loss, z_indices
-
-    # @torch.no_grad()
-    # def get_soft_codes(self, x, temp=1.0, stochastic=False):
-    #     distances = self.embedding.compute_distances(x)
-    #     soft_code = F.softmax(-distances / temp, dim=-1)
-
-    #     if stochastic:
-    #         soft_code_flat = soft_code.reshape(-1, soft_code.shape[-1])
-    #         code = torch.multinomial(soft_code_flat, 1)
-    #         code = code.reshape(*soft_code.shape[:-1])
-    #     else:
-    #         code = distances.argmin(dim=-1)
-
-    #     return soft_code, code
-    
-    # def get_codebook_entry(self, indices, *kwargs):
-    #     # get quantized latent vectors
-    #     indices_coarse = indices[0] - 1
-    #     indices_fine = indices[1] - 1
-        
-    #     coarse_fill = (torch.zeros_like(indices_coarse)).to(indices_coarse.device).to(indices_coarse.dtype)
-    #     fine_fill = coarse_fill.repeat_interleave(2, dim=-1).repeat_interleave(2, dim=-2)
-
-    #     indices_coarse_embed = torch.where(indices_coarse==-1, coarse_fill, indices_coarse)
-    #     indices_fine_embed = torch.where(indices_fine==-1, fine_fill, indices_fine)
-
-    #     z_q_coarse = self.embedding(indices_coarse_embed)
-    #     z_q_fine = self.embedding(indices_fine_embed)
-
-    #     z_q_coarse = z_q_coarse.repeat_interleave(2, dim=-2).repeat_interleave(2, dim=-3)
-
-    #     fine_mask = torch.where(indices_fine==-1, fine_fill, 1-fine_fill).unsqueeze(3).repeat_interleave(256, dim=-1)
-    #     z_q = torch.where(fine_mask==0, z_q_coarse, z_q_fine)
-
-    #     return z_q

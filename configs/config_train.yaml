@@ -13,13 +13,13 @@ trainer:
   max_steps: 165000
   max_time: 
   replace_sampler_ddp: True
-  val_check_interval: 1500
+  val_check_interval: 2000
 
 ModelCheckpoint:
   dirpath: './all_saves/'
   filename: "{step}-model"
   save_top_k: -1
-  every_n_train_steps: 1500
+  every_n_train_steps: 2000
 
 model:
   target: CGIC.models.model.CGIC
@@ -28,7 +28,7 @@ model:
     learning_rate: 5e-5
     ema_decay: 0.9999
     embed_dim: 4
-    n_embed: 16384
+    n_embed: 1024
     monitor: val/rec_loss
     image_size: 256
     entropy_patch_size: 
@@ -71,14 +71,14 @@ model:
 
 data:
   train:
-    datadir: $train_data_dir
+    datadir: ../dataset/openimages/train/data
     image_size: 256
     batch_size: 2
     shuffle: True
     num_workers: 8
     is_train: True
   validation:
-    datadir: $val_data_dir
+    datadir: ../dataset/Kodak
     image_size: 256
     batch_size: 4
     shuffle: False

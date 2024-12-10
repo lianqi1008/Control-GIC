@@ -23,11 +23,13 @@ from omegaconf import OmegaConf
 
 import torchvision
 import torchvision.transforms as T
+import torchvision.transforms.functional as TF
 from torch.nn.functional import mse_loss, l1_loss
 from torch.utils.data import DataLoader, Dataset
 
 from CGIC.models.model import CGIC
-import torchvision.transforms.functional as TF
+from CGIC.tools.indices_coding import HuffmanCoding as HuffmanCoding # Huffman with frequency
+from CGIC.tools.mask_coding import BinaryCoding
 
 class ImageDataset(Dataset):
     def __init__(
@@ -44,7 +46,6 @@ class ImageDataset(Dataset):
         if images_range[1] > 0:
             self.image_paths = self.image_paths[images_range[0]:images_range[1]]
         print(f'Found {len(self.image_paths)} images to reconstruct')
-        # print(f'Image Resize to {self.target_size} × {self.target_size}')
 
         self.transform = T.Compose([
             # T.RandomResizedCrop(self.target_size, scale=(1., 1.), ratio=(1., 1.), interpolation=Image.Resampling.BICUBIC),
@@ -60,9 +61,9 @@ class ImageDataset(Dataset):
     
     def _resize_and_crop(self, img):
         w, h  = img.size
-        hn = h // 32
-        wn = w // 32
-        img = TF.center_crop(img, output_size=[int(32*hn), int(wn*32)])
+        hn = h // 16
+        wn = w // 16
+        img = TF.center_crop(img, output_size=[int(16*hn), int(wn*16)])
         return img
 
     def __len__(self) -> int:
@@ -114,8 +115,8 @@ def get_parser(**parser_kwargs):
     parser.add_argument('-b', '--batch_size', type=int, default=1, help='Number of images in a minibatch')
     parser.add_argument('-n', '--num_workers', type=int, default=1, help='Number of worker threads to load the images')
     parser.add_argument('-s', '--image_size', type=int, default=512, help='Size of the reconstructed image')
-    parser.add_argument('-o', '--output_dir', type=str, default='output', help='Path to a directory where the outputs will be saved')
-    parser.add_argument('-w', '--write_output_image', action='store_true', help='If set, the reconstructed images will be saved to the output directory')
+    parser.add_argument('-o', '--output_dir', type=str, default='./output', help='Path to a directory where the outputs will be saved')
+    parser.add_argument('-w', '--write_partiton_map', action='store_true', help='If set, the partition maps will be saved to the output directory')
     parser.add_argument('-r', '--images_range', type=int, nargs=2, default=(0, -1),
                         help=('Optional. To use provide two values indicating the starting and ending indices of the images to be loaded.'
                               ' Only images within this range will be loaded. Useful for manually sharding the dataset if running all images'
@@ -130,14 +131,10 @@ def main():
     dataset = ImageDataset(opt.images_dir, opt.image_size, opt.images_range)
     dataloader = DataLoader(dataset, opt.batch_size, num_workers=opt.num_workers)
 
-    config = load_config("./configs/config_inference.yaml", display=False)
-    print(config)
+    config = load_config("./configs/config_inference.yaml", display=True)
     model = load_model(config).to('cuda')
     
     frequency = model.quantize.embedding_counter
-
-    from CGIC.tools.indices_coding import HuffmanCoding as HuffmanCoding # Huffman with frequency
-    from CGIC.tools.mask_coding import BinaryCoding
 
     h_string = HuffmanCoding(frequency)
     h_mask = BinaryCoding()
@@ -145,11 +142,14 @@ def main():
     n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print('number of params (M): %.2f' % (n_parameters / 1.e6))
 
-    if opt.write_output_image:
-        rec_output_dir = Path(opt.output_dir) / 'output'
-        rec_output_dir.mkdir(parents=True, exist_ok=True)
+    Path(opt.output_dir).mkdir(parents=True, exist_ok=True)
+    rec_output_dir = Path(opt.output_dir) / 'reconstructed'
+    rec_output_dir.mkdir(parents=True, exist_ok=True)
+    save_img = False
+    if opt.write_partiton_map:
         partition_output_dir = Path(opt.output_dir) / 'partition_map'
         partition_output_dir.mkdir(parents=True, exist_ok=True)
+        save_img = True
 
     bpp_sum = 0.
     
@@ -159,20 +159,17 @@ def main():
                 x = x.cuda()
             
             with torch.no_grad():
-                if opt.write_output_image:
-                    x_rec, bpp, partition_map = model.compress(x, opt.output_dir, h_string, h_mask, save_img=True)
-                    x_rec = x_rec.clamp(0, 1)
-                    write_images(x_rec, rec_output_dir, i, opt.batch_size, opt.images_range[0], bpp=bpp)
+                x_rec, bpp, partition_map = model.compress(x, opt.output_dir, h_string, h_mask, save_img)
+                x_rec = x_rec.clamp(0, 1)
+                write_images(x_rec, rec_output_dir, i, opt.batch_size, opt.images_range[0], bpp=bpp)
+                if opt.write_partiton_map:
                     write_images(partition_map, partition_output_dir, i, opt.batch_size, opt.images_range[0], None)
-                else:
-                    bpp = model.compress(x, opt.output_dir, h_string, h_mask, save_img=False)
 
             bpp_sum += bpp
             f.write(f'image: {i} \t bpp: {bpp}\n')
         f.write(f'Bpp Average: {bpp_sum/len(dataset)}')
         print(f'Bpp Average: {bpp_sum/len(dataset)}')
     f.close()
-
 
 if __name__ == '__main__':
     main()

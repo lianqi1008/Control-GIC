@@ -5,13 +5,13 @@ model:
     learning_rate: 5e-5
     ema_decay: 0.9999
     embed_dim: 4
-    n_embed: 16384
+    n_embed: 1024
     monitor: val/rec_loss
     image_size: 256
     entropy_patch_size: 
     - 8
     - 16
-    ckpt_path: './all_saves/step164999.ckpt'
+    ckpt_path: './ckpy/model.ckpt'
     ddconfig:
       double_z: false
       z_channels: 4

@@ -109,7 +109,6 @@ class CGIC(pl.LightningModule):
 
         h = self.quant_conv(h)
         quant, emb_loss, ind = self.quantize(h)
-
         return quant, emb_loss, grain_indices, grain_mask, ind, fine_ratio, compression_mode
 
     def decode(self, quant, mask):
@@ -129,6 +128,11 @@ class CGIC(pl.LightningModule):
 
     def forward(self, input):
         quant, diff, grain_indices, grain_mask, _, _, _ = self.encode(input)
+        if self.trainer.state.stage == 'validation':
+            grain_mask[0] = grain_mask[0].squeeze()
+            grain_mask[1] = grain_mask[1].squeeze()
+            grain_mask[2] = grain_mask[2].squeeze()
+
         dec = self.decode(quant, grain_mask)
         return dec, diff, grain_indices
 
@@ -205,12 +209,16 @@ class CGIC(pl.LightningModule):
 
         # compress
         quant, diff, grain_indices, grain_mask, ind, _, mode = self.encode(input)
-        partiton_map = draw_triple_grain_256res(images=input.clone(), indices=grain_indices)
+
+        if save_img:
+            partition_map = draw_triple_grain_256res(images=input.clone(), indices=grain_indices)
+        else:
+            partition_map = None
         ind = ind.view(-1, quant.shape[-2], quant.shape[-1])
 
-        ind_coarse = ind[:,::4,::4][grain_mask[0] == 1]
-        ind_medium = ind[:,::2,::2][grain_mask[1] == 1]
-        ind_fine = ind[grain_mask[2] == 1]
+        ind_coarse = ind[:,::4,::4][grain_mask[0][0] == 1]
+        ind_medium = ind[:,::2,::2][grain_mask[1][0] == 1]
+        ind_fine = ind[grain_mask[2][0] == 1]
 
         num_pixels = input.shape[2]*input.shape[3]
 
@@ -257,120 +265,140 @@ class CGIC(pl.LightningModule):
         # print(f'mask_coarse: {os.path.getsize(mask_coarse) * 8 / num_pixels} bpp')
         # print(f'mask_medium: {os.path.getsize(mask_medium) * 8 / num_pixels} bpp')
         
-        if not save_img:
-            return bpp
-        else:
-            # decompress
-            if mode==0:
-                ind_coarse_decompress = h_indices.decompress_string(os.path.join(path, 'indices_coarse.bin'))
-                ind_medium_decompress = h_indices.decompress_string(os.path.join(path, 'indices_medium.bin'))
-                ind_fine_decompress = h_indices.decompress_string(os.path.join(path, 'indices_fine.bin'))
+        # decompress
+        if mode==0:
+            ind_coarse_decompress = h_indices.decompress_string(os.path.join(path, 'indices_coarse.bin'))
+            ind_medium_decompress = h_indices.decompress_string(os.path.join(path, 'indices_medium.bin'))
+            ind_fine_decompress = h_indices.decompress_string(os.path.join(path, 'indices_fine.bin'))
 
-                mask_coarse_decompress = h_mask.decompress_string(os.path.join(path, 'mask_coarse.bin'))
-                mask_medium_decompress = h_mask.decompress_string(os.path.join(path, 'mask_medium.bin'))
+            mask_coarse_decompress = h_mask.decompress_string(os.path.join(path, 'mask_coarse.bin'))
+            mask_medium_decompress = h_mask.decompress_string(os.path.join(path, 'mask_medium.bin'))
 
-                # For convenience, the name of the variable has not been changed, and is actually represented here as mask
-                ind_coarse = torch.tensor(mask_coarse_decompress).view(1, ind.shape[-2]//4, ind.shape[-1]//4).to(ind.device)
-                ind_medium = torch.tensor(mask_medium_decompress).view(1, ind.shape[-2]//2, ind.shape[-1]//2).to(ind.device)
-                ind_fine = (1 - ind_medium.repeat_interleave(2, dim=-1).repeat_interleave(2, dim=-2) - ind_coarse.repeat_interleave(4, dim=-1).repeat_interleave(4, dim=-2)).to(ind.device)
+            # For convenience, the name of the variable has not been changed, and is actually represented here as mask
+            ind_coarse = torch.tensor(mask_coarse_decompress).view(1, ind.shape[-2]//4, ind.shape[-1]//4).to(ind.device)
+            ind_medium = torch.tensor(mask_medium_decompress).view(1, ind.shape[-2]//2, ind.shape[-1]//2).to(ind.device)
+            ind_fine = (1 - ind_medium.repeat_interleave(2, dim=-1).repeat_interleave(2, dim=-2) - ind_coarse.repeat_interleave(4, dim=-1).repeat_interleave(4, dim=-2)).to(ind.device)
 
-                grain_mask_decompress = [ind_coarse.clone(), ind_medium.clone(), ind_fine.clone()]
+            grain_mask_decompress = [ind_coarse.clone(), ind_medium.clone(), ind_fine.clone()]
 
-                ind_coarse[ind_coarse==1] = torch.tensor(ind_coarse_decompress).to(ind.device)
-                ind_medium[ind_medium==1] = torch.tensor(ind_medium_decompress).to(ind.device)
-                ind_fine[ind_fine==1] = torch.tensor(ind_fine_decompress).to(ind.device)
-                ind_decompress = ind_fine + ind_medium.repeat_interleave(2, dim=-1).repeat_interleave(2, dim=-2) + ind_coarse.repeat_interleave(4, dim=-1).repeat_interleave(4, dim=-2)
-                # print(ind_decompress)
-
-            elif mode==1:
-                ind_medium_decompress = h_indices.decompress_string(os.path.join(path, 'indices_medium.bin'))
-                ind_fine_decompress = h_indices.decompress_string(os.path.join(path, 'indices_fine.bin'))
-                mask_medium_decompress = h_mask.decompress_string(os.path.join(path, 'mask_medium.bin'))
-
-                ind_medium = torch.tensor(mask_medium_decompress).view(1, ind.shape[-2]//2, ind.shape[-1]//2).to(ind.device)
-                ind_fine = (1 - ind_medium.repeat_interleave(2, dim=-1).repeat_interleave(2, dim=-2)).to(ind.device)
-                ind_coarse = torch.zeros([ind_medium.shape[0], ind_medium.shape[1]//2, ind_medium.shape[2]//2]).to(ind.device)
-
-                grain_mask_decompress = [ind_coarse.clone(), ind_medium.clone(), ind_fine.clone()]
-                
-                ind_medium[ind_medium==1] = torch.tensor(ind_medium_decompress).to(ind.device)
-                ind_fine[ind_fine==1] = torch.tensor(ind_fine_decompress).to(ind.device)
-                ind_decompress = ind_fine + ind_medium.repeat_interleave(2, dim=-1).repeat_interleave(2, dim=-2)
-
-            elif mode==2:
-                ind_coarse_decompress = h_indices.decompress_string(os.path.join(path, 'indices_coarse.bin'))
-                ind_fine_decompress = h_indices.decompress_string(os.path.join(path, 'indices_fine.bin'))
-                mask_coarse_decompress = h_mask.decompress_string(os.path.join(path, 'mask_coarse.bin'))
-
-                ind_coarse = torch.tensor(mask_coarse_decompress).view(1, ind.shape[-2]//4, ind.shape[-1]//4).to(ind.device)
-                ind_fine = (1 - ind_coarse.repeat_interleave(4, dim=-1).repeat_interleave(4, dim=-2)).to(ind.device)
-                ind_medium = torch.zeros([ind_coarse.shape[0], ind_coarse.shape[1]*2, ind_coarse.shape[2]*2]).to(ind.device)
-
-                grain_mask_decompress = [ind_coarse.clone(), ind_medium.clone(), ind_fine.clone()]
-
-                ind_coarse[ind_coarse==1] = torch.tensor(ind_coarse_decompress).to(ind.device)
-                ind_fine[ind_fine==1] = torch.tensor(ind_fine_decompress).to(ind.device)
-
-                ind_decompress = ind_fine + ind_coarse.repeat_interleave(4, dim=-1).repeat_interleave(4, dim=-2)
-
-            elif mode==3:
-                ind_coarse_decompress = h_indices.decompress_string(os.path.join(path, 'indices_coarse.bin'))
-                ind_medium_decompress = h_indices.decompress_string(os.path.join(path, 'indices_medium.bin'))
-                mask_coarse_decompress = h_mask.decompress_string(os.path.join(path, 'mask_coarse.bin'))
-
-                ind_coarse = torch.tensor(mask_coarse_decompress).view(1, ind.shape[-2]//4, ind.shape[-1]//4).to(ind.device)
-                ind_medium = (1 - ind_coarse.repeat_interleave(2, dim=-1).repeat_interleave(2, dim=-2)).to(ind.device)
-                ind_fine = torch.zeros([ind_coarse.shape[0], ind_coarse.shape[1]*4, ind_coarse.shape[2]*4]).to(ind.device)
-
-                grain_mask_decompress = [ind_coarse.clone(), ind_medium.clone(), ind_fine.clone()]
-
-                ind_coarse[ind_coarse==1] = torch.tensor(ind_coarse_decompress).to(ind.device)
-                ind_medium[ind_medium==1] = torch.tensor(ind_medium_decompress).to(ind.device)
-
-                ind_decompress = ind_coarse.repeat_interleave(4, dim=-1).repeat_interleave(4, dim=-2) + ind_medium.repeat_interleave(2, dim=-1).repeat_interleave(2, dim=-2)
-                
-            elif mode==4:
-                ind_coarse_decompress = h_indices.decompress_string(os.path.join(path, 'indices_coarse.bin'))
-                ind_coarse_decompress = torch.tensor(ind_coarse_decompress).view(1, ind.shape[-2]//4, ind.shape[-1]//4)
-                ind_coarse_decompress = ind_coarse_decompress.repeat_interleave(4, dim=-1).repeat_interleave(4, dim=-2).int().to(ind.device)
-                
-                mask_coarse = torch.ones([1, ind.shape[-2]//4, ind.shape[-1]//4]).int().to(ind.device)
-                mask_medium = torch.zeros([mask_coarse.shape[0], mask_coarse.shape[1]*2, mask_coarse.shape[2]*2]).int().to(ind.device)
-                mask_fine = torch.zeros([mask_coarse.shape[0], mask_coarse.shape[1]*4, mask_coarse.shape[2]*4]).int().to(ind.device)
-
-                grain_mask_decompress = [mask_coarse, mask_medium, mask_fine]
-
-                ind_decompress = ind_coarse_decompress
-
-            elif mode==5:
-                ind_medium_decompress = h_indices.decompress_string(os.path.join(path, 'indices_medium.bin'))
-                ind_medium_decompress = torch.tensor(ind_medium_decompress).view(1, ind.shape[-2]//2, ind.shape[-1]//2)
-                ind_medium_decompress = ind_medium_decompress.repeat_interleave(2, dim=-1).repeat_interleave(2, dim=-2).int().to(ind.device)
-
-                mask_medium = torch.ones([1, ind.shape[-2]//2, ind.shape[-1]//2]).int().to(ind.device)
-                mask_coarse = torch.zeros([mask_medium.shape[0], mask_medium.shape[1]//2, mask_medium.shape[2]//2]).int().to(ind.device)
-                mask_fine = torch.zeros([mask_medium.shape[0], mask_medium.shape[1]*2, mask_medium.shape[2]*2]).int().to(ind.device)
-
-                grain_mask_decompress = [mask_coarse, mask_medium, mask_fine]
-
-                ind_decompress = ind_medium_decompress
+            if ind_coarse_decompress is None:
+                ind_coarse = torch.zeros([ind_medium.shape[0], ind_medium.shape[1]//2, ind_medium.shape[2]//2]).to(ind.device).int()
             else:
-                ind_fine_decompress = h_indices.decompress_string(os.path.join(path, 'indices_fine.bin'))
+                ind_coarse[ind_coarse==1] = torch.tensor(ind_coarse_decompress).to(ind.device)
+            if ind_medium_decompress is None:
+                ind_medium = torch.zeros([ind_coarse.shape[0], ind_coarse.shape[1]*2, ind_coarse.shape[2]*2]).to(ind.device).int()
+            else:
+                ind_medium[ind_medium==1] = torch.tensor(ind_medium_decompress).to(ind.device)
+            ind_fine[ind_fine==1] = torch.tensor(ind_fine_decompress).to(ind.device)
+            ind_decompress = ind_fine + ind_medium.repeat_interleave(2, dim=-1).repeat_interleave(2, dim=-2) + ind_coarse.repeat_interleave(4, dim=-1).repeat_interleave(4, dim=-2)
+            # print(ind_decompress)
 
-                mask_fine = torch.ones([1, ind.shape[-2], ind.shape[-1]]).int().to(ind.device)
-                mask_coarse = torch.zeros([mask_fine.shape[0], mask_fine.shape[1]//4, mask_fine.shape[2]//4]).int().to(ind.device)
-                mask_medium = torch.zeros([mask_fine.shape[0], mask_fine.shape[1]//2, mask_fine.shape[2]//2]).int().to(ind.device)
+        elif mode==1:
+            ind_medium_decompress = h_indices.decompress_string(os.path.join(path, 'indices_medium.bin'))
+            ind_fine_decompress = h_indices.decompress_string(os.path.join(path, 'indices_fine.bin'))
+            mask_medium_decompress = h_mask.decompress_string(os.path.join(path, 'mask_medium.bin'))
 
-                grain_mask_decompress = [mask_coarse, mask_medium, mask_fine]
+            ind_medium = torch.tensor(mask_medium_decompress).view(1, ind.shape[-2]//2, ind.shape[-1]//2).to(ind.device)
+            ind_fine = (1 - ind_medium.repeat_interleave(2, dim=-1).repeat_interleave(2, dim=-2)).to(ind.device)
+            ind_coarse = torch.zeros([ind_medium.shape[0], ind_medium.shape[1]//2, ind_medium.shape[2]//2]).to(ind.device)
 
-                ind_decompress = torch.tensor(ind_fine_decompress).view(1, ind.shape[-2], ind.shape[-1]).int().to(ind.device)
+            grain_mask_decompress = [ind_coarse.clone(), ind_medium.clone(), ind_fine.clone()]
+            
+            if ind_medium_decompress is None:
+                ind_medium = torch.zeros([ind_coarse.shape[0], ind_coarse.shape[1]*2, ind_coarse.shape[2]*2]).to(ind.device).int()
+            else:
+                ind_medium[ind_medium==1] = torch.tensor(ind_medium_decompress).to(ind.device)
+            ind_fine[ind_fine==1] = torch.tensor(ind_fine_decompress).to(ind.device)
+            ind_decompress = ind_fine + ind_medium.repeat_interleave(2, dim=-1).repeat_interleave(2, dim=-2)
 
-            quant_decompress = self.quantize.embedding(ind_decompress.flatten()).view(ind_decompress.shape[0], ind_decompress.shape[1], ind_decompress.shape[2], -1)
-            quant_decompress = rearrange(quant_decompress, 'b h w c -> b c h w')
+        elif mode==2:
+            ind_coarse_decompress = h_indices.decompress_string(os.path.join(path, 'indices_coarse.bin'))
+            ind_fine_decompress = h_indices.decompress_string(os.path.join(path, 'indices_fine.bin'))
+            mask_coarse_decompress = h_mask.decompress_string(os.path.join(path, 'mask_coarse.bin'))
 
-            dec = self.decode(quant_decompress, grain_mask_decompress)
+            ind_coarse = torch.tensor(mask_coarse_decompress).view(1, ind.shape[-2]//4, ind.shape[-1]//4).to(ind.device)
+            ind_fine = (1 - ind_coarse.repeat_interleave(4, dim=-1).repeat_interleave(4, dim=-2)).to(ind.device)
+            ind_medium = torch.zeros([ind_coarse.shape[0], ind_coarse.shape[1]*2, ind_coarse.shape[2]*2]).to(ind.device)
 
-            return dec, bpp, partiton_map
+            grain_mask_decompress = [ind_coarse.clone(), ind_medium.clone(), ind_fine.clone()]
+
+            if ind_coarse_decompress is None:
+                    ind_coarse = torch.zeros([ind_medium.shape[0], ind_medium.shape[1]//2, ind_medium.shape[2]//2]).to(ind.device).int()
+            else:
+                ind_coarse[ind_coarse==1] = torch.tensor(ind_coarse_decompress).to(ind.device)
+            ind_fine[ind_fine==1] = torch.tensor(ind_fine_decompress).to(ind.device)
+
+            ind_decompress = ind_fine + ind_coarse.repeat_interleave(4, dim=-1).repeat_interleave(4, dim=-2)
+
+        elif mode==3:
+            ind_coarse_decompress = h_indices.decompress_string(os.path.join(path, 'indices_coarse.bin'))
+            ind_medium_decompress = h_indices.decompress_string(os.path.join(path, 'indices_medium.bin'))
+            mask_coarse_decompress = h_mask.decompress_string(os.path.join(path, 'mask_coarse.bin'))
+
+            ind_coarse = torch.tensor(mask_coarse_decompress).view(1, ind.shape[-2]//4, ind.shape[-1]//4).to(ind.device)
+            ind_medium = (1 - ind_coarse.repeat_interleave(2, dim=-1).repeat_interleave(2, dim=-2)).to(ind.device)
+            ind_fine = torch.zeros([ind_coarse.shape[0], ind_coarse.shape[1]*4, ind_coarse.shape[2]*4]).to(ind.device)
+
+            grain_mask_decompress = [ind_coarse.clone(), ind_medium.clone(), ind_fine.clone()]
+
+            if ind_coarse_decompress is None:
+                ind_coarse = torch.zeros([ind_medium.shape[0], ind_medium.shape[1]//2, ind_medium.shape[2]//2]).to(ind.device).int()
+            else:
+                ind_coarse[ind_coarse==1] = torch.tensor(ind_coarse_decompress).to(ind.device)
+            if ind_medium_decompress is None:
+                ind_medium = torch.zeros([ind_coarse.shape[0], ind_coarse.shape[1]*2, ind_coarse.shape[2]*2]).to(ind.device).int()
+            else:
+                ind_medium[ind_medium==1] = torch.tensor(ind_medium_decompress).to(ind.device)
+
+            ind_decompress = ind_coarse.repeat_interleave(4, dim=-1).repeat_interleave(4, dim=-2) + ind_medium.repeat_interleave(2, dim=-1).repeat_interleave(2, dim=-2)
+            
+        elif mode==4:
+            ind_coarse_decompress = h_indices.decompress_string(os.path.join(path, 'indices_coarse.bin'))
+            ind_coarse_decompress = torch.tensor(ind_coarse_decompress).view(1, ind.shape[-2]//4, ind.shape[-1]//4)
+            ind_coarse_decompress = ind_coarse_decompress.repeat_interleave(4, dim=-1).repeat_interleave(4, dim=-2).int().to(ind.device)
+            
+            mask_coarse = torch.ones([1, ind.shape[-2]//4, ind.shape[-1]//4]).int().to(ind.device)
+            mask_medium = torch.zeros([mask_coarse.shape[0], mask_coarse.shape[1]*2, mask_coarse.shape[2]*2]).int().to(ind.device)
+            mask_fine = torch.zeros([mask_coarse.shape[0], mask_coarse.shape[1]*4, mask_coarse.shape[2]*4]).int().to(ind.device)
+
+            grain_mask_decompress = [mask_coarse, mask_medium, mask_fine]
+
+            ind_decompress = ind_coarse_decompress
+
+        elif mode==5:
+            ind_medium_decompress = h_indices.decompress_string(os.path.join(path, 'indices_medium.bin'))
+            ind_medium_decompress = torch.tensor(ind_medium_decompress).view(1, ind.shape[-2]//2, ind.shape[-1]//2)
+            ind_medium_decompress = ind_medium_decompress.repeat_interleave(2, dim=-1).repeat_interleave(2, dim=-2).int().to(ind.device)
+
+            mask_medium = torch.ones([1, ind.shape[-2]//2, ind.shape[-1]//2]).int().to(ind.device)
+            mask_coarse = torch.zeros([mask_medium.shape[0], mask_medium.shape[1]//2, mask_medium.shape[2]//2]).int().to(ind.device)
+            mask_fine = torch.zeros([mask_medium.shape[0], mask_medium.shape[1]*2, mask_medium.shape[2]*2]).int().to(ind.device)
+
+            grain_mask_decompress = [mask_coarse, mask_medium, mask_fine]
+
+            ind_decompress = ind_medium_decompress
+        else:
+            ind_fine_decompress = h_indices.decompress_string(os.path.join(path, 'indices_fine.bin'))
+
+            mask_fine = torch.ones([1, ind.shape[-2], ind.shape[-1]]).int().to(ind.device)
+            mask_coarse = torch.zeros([mask_fine.shape[0], mask_fine.shape[1]//4, mask_fine.shape[2]//4]).int().to(ind.device)
+            mask_medium = torch.zeros([mask_fine.shape[0], mask_fine.shape[1]//2, mask_fine.shape[2]//2]).int().to(ind.device)
+
+            grain_mask_decompress = [mask_coarse, mask_medium, mask_fine]
+
+            ind_decompress = torch.tensor(ind_fine_decompress).view(1, ind.shape[-2], ind.shape[-1]).int().to(ind.device)
+
+        quant_decompress = self.quantize.embedding(ind_decompress.flatten()).view(ind_decompress.shape[0], ind_decompress.shape[1], ind_decompress.shape[2], -1)
+        quant_decompress = rearrange(quant_decompress, 'b h w c -> b c h w')
+
+        if not self.training:
+            grain_mask_decompress[0] = grain_mask_decompress[0].unsqueeze(0)
+            grain_mask_decompress[1] = grain_mask_decompress[1].unsqueeze(0)
+            grain_mask_decompress[2] = grain_mask_decompress[2].unsqueeze(0)
+
+        dec = self.decode(quant_decompress, grain_mask_decompress)
+
+        return dec, bpp, partition_map
 
     def get_last_layer(self):
         return self.decoder.conv_out.weight

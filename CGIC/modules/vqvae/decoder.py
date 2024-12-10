@@ -367,16 +367,19 @@ class Decoder(nn.Module):
         h_medium_reconv = self.avgpool_layer2(h_medium_reconv)
         
         # upsampling
+        upsample_2 = nn.Upsample(scale_factor=2, mode='nearest')
+        upsample_4 = nn.Upsample(scale_factor=4, mode='nearest')
+
         for i_level in reversed(range(self.num_resolutions)):
             if i_level == self.num_resolutions-1:
                 h = h_coarse_reconv
             elif i_level == self.num_resolutions-2:
-                h = h*mask[0].repeat_interleave(2, dim=-1).repeat_interleave(2, dim=-2).unsqueeze(1) + \
-                    h_medium_reconv*mask[1].unsqueeze(1)
+                h = h*upsample_2(mask[0].float()) + \
+                    h_medium_reconv*mask[1]
             elif i_level == self.num_resolutions-3:
-                h = h*mask[0].repeat_interleave(4, dim=-1).repeat_interleave(4, dim=-2).unsqueeze(1) + \
-                    h*mask[1].repeat_interleave(2, dim=-1).repeat_interleave(2, dim=-2).unsqueeze(1) + \
-                    h_fine*mask[2].unsqueeze(1)
+                h = h*upsample_4(mask[0].float()) + \
+                    h*upsample_2(mask[1].float()) + \
+                    h_fine*mask[2]
             for i_block in range(self.num_res_blocks+1):
                 h = self.up[i_level].block[i_block](h, temb, zq)
                 if len(self.up[i_level].attn) > 0:

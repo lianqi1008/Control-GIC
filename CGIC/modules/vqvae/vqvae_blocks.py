@@ -358,9 +358,12 @@ class Encoder(nn.Module):
         # [B,C,H,W] c0:coarse,c1:medium,c2:fine
         indices = gate.argmax(dim=1)
 
-        h = h_coarse.repeat_interleave(4, dim=-1).repeat_interleave(4, dim=-2)*mask[0].repeat_interleave(4, dim=-1).repeat_interleave(4, dim=-2).unsqueeze(1) + \
-            h_medium.repeat_interleave(2, dim=-1).repeat_interleave(2, dim=-2)*mask[1].repeat_interleave(2, dim=-1).repeat_interleave(2, dim=-2).unsqueeze(1) + \
-            h_fine*mask[2].unsqueeze(1)
+        upsample_2 = nn.Upsample(scale_factor=2, mode='nearest')
+        upsample_4 = nn.Upsample(scale_factor=4, mode='nearest')
+
+        h = upsample_4(h_coarse)*upsample_4(mask[0].float()) + \
+            upsample_2(h_medium)*upsample_2(mask[1].float()) + \
+            h_fine*mask[2]
 
         return {
             "h": h,
