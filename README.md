@@ -1,4 +1,4 @@
-# Control-GIC: Controllable Generative Image Compression
+# Control-GIC: Controllable Generative Image Compression (ICLR 2025)
 ![Example](./figs/example.png)
 
 [**Once-for-All: Controllable Generative Image Compression with Dynamic Granularity Adaption**](https://arxiv.org/pdf/2406.00758) 
