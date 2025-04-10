@@ -56,12 +56,12 @@ Once the granularity ratio is fixed, the bpp values of each image in the dataset
 
 ## Cite
 ```
-@misc{li2024onceforall,
-      title={Once-for-All: Controllable Generative Image Compression with Dynamic Granularity Adaption}, 
-      author={Anqi Li and Feng Li and Yuxi Liu and Runmin Cong and Yao Zhao and Huihui Bai},
-      year={2024},
-      eprint={2406.00758},
-      archivePrefix={arXiv}
+@inproceedings{
+li2025onceforall,
+title={Once-for-All: Controllable Generative Image Compression with Dynamic Granularity Adaptation},
+author={Anqi Li and Feng Li and Yuxi Liu and Runmin Cong and Yao Zhao and Huihui Bai},
+booktitle={The Thirteenth International Conference on Learning Representations},
+year={2025}
 }
 ```
 
