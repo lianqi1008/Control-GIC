@@ -21,6 +21,7 @@ cd Control-GIC
 conda create -n CGIC python=3.10.4
 conda activate CGIC
 pip install -r requirements.txt
+(if errors occur, conda install pip=22.3.1)
 ```
 ## 🚀 Usage
 The **model weight** can be downloaded from [GoogleDrive](https://drive.google.com/file/d/1kOWv7rrTYf0J_FtRXCrVEWRRSHU5JSfc/view?usp=drive_link) and [BaiduNetDisk](https://pan.baidu.com/s/1j0UGcE2LPjzvWeO6Nl3RWw?pwd=skib).
