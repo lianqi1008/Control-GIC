@@ -12,7 +12,6 @@ import torch
 import requests
 import numpy as np
 from PIL import Image
-
 from io import BytesIO
 from typing import Optional, Tuple, Union
 from tqdm import tqdm
